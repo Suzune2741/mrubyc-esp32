@@ -132,7 +132,7 @@ wlan = WLAN.new('STA', WLAN::ACTIVE)
 
 # WiFiの接続
 puts 'start connect....'
-wlan.connect("SugiyamaLab", "epi.it.matsue-ct.jp")
+wlan.connect("SSID", "passwd")
 
 # 時刻合わせ
 sntp = SNTP.new
@@ -225,7 +225,7 @@ wlan = WLAN.new('STA', WLAN::ACTIVE)
 
 # WiFiの接続
 puts 'start connect....'
-wlan.connect("SugiyamaLab", "epi.it.matsue-ct.jp")
+wlan.connect("SSID", "passwd")
 
 # スイッチ初期化
 sw34 = GPIO.new( 34, GPIO::IN, GPIO::PULL_UP)
@@ -404,7 +404,7 @@ wlan = WLAN.new('STA', WLAN::ACTIVE)
 
 # WiFiの接続
 puts 'start connect....'
-wlan.connect("SugiyamaLab", "epi.it.matsue-ct.jp")
+wlan.connect("SSID", "passwd")
 
 # 時刻合わせ
 puts 'start SNTP...'
