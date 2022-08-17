@@ -17,6 +17,7 @@
 #include "mrbc_esp32_http_client.h"
 #include "mrbc_esp32_sleep.h"
 #include "mrbc_esp32_spi.h"
+#include "mrbc_esp32_utils.h"
 
 //*********************************************
 // ENABLE MASTER files written by mruby/c
@@ -87,6 +88,8 @@ void app_main(void) {
   mrbc_esp32_sleep_gem_init(0);
   printf("start SPI (C) \n");
   mrbc_esp32_spi_gem_init(0);
+  printf("start SPI (C) \n");
+  mrbc_esp32_utils_gem_init(0);
 
 //***********************************************************
 // BEGIN COMPONENTS 2: INCLUDE CLASS files associated with mruby/c
