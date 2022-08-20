@@ -11,13 +11,15 @@
 #include "mrbc_esp32_ledc.h"
 #include "mrbc_esp32_adc.h"
 #include "mrbc_esp32_uart.h"
-#include "mrbc_esp32_i2c.h"
-#include "mrbc_esp32_wifi.h"
-#include "mrbc_esp32_sntp.h"
-#include "mrbc_esp32_http_client.h"
 #include "mrbc_esp32_sleep.h"
 #include "mrbc_esp32_spi.h"
 #include "mrbc_esp32_utils.h"
+#include "mrbc_esp32_i2c.h"
+#ifdef CONFIG_USE_ESP32_WIFI
+#include "mrbc_esp32_wifi.h"
+#include "mrbc_esp32_sntp.h"
+#include "mrbc_esp32_http_client.h"
+#endif
 
 //*********************************************
 // ENABLE MASTER files written by mruby/c
@@ -27,13 +29,14 @@
 
 //***********************************************************
 // BEGIN COMPONENTS 1: INCLUDE CLASS files associated with mruby/c
+#include "mrbc_esp32_bmp280.h"
 //
 // END COMPONENTS 1
 //-----------------------------------------------------------
 
 static const char *TAG = "iotex-esp32-mrubyc";
 
-#define MEMORY_SIZE (1024*70)
+#define MEMORY_SIZE (1024*100)
 #define WAIT_TIME 100
 
 static uint8_t memory_pool[MEMORY_SIZE];
@@ -80,19 +83,22 @@ void app_main(void) {
   mrbc_esp32_i2c_gem_init(0);
   printf("start UART (C)\n");
   mrbc_esp32_uart_gem_init(0);
-  printf("start WiFi (C) \n");
-  mrbc_esp32_wifi_gem_init(0);
-  mrbc_esp32_sntp_gem_init(0);
-  mrbc_esp32_httpclient_gem_init(0);
   printf("start SLEEP (C) \n");
   mrbc_esp32_sleep_gem_init(0);
   printf("start SPI (C) \n");
   mrbc_esp32_spi_gem_init(0);
-  printf("start SPI (C) \n");
+  printf("start Utils (C) \n");
   mrbc_esp32_utils_gem_init(0);
+#ifdef CONFIG_USE_ESP32_WIFI
+  printf("start WiFi (C) \n");
+  mrbc_esp32_wifi_gem_init(0);
+  mrbc_esp32_sntp_gem_init(0);
+  mrbc_esp32_httpclient_gem_init(0);
+#endif
 
 //***********************************************************
 // BEGIN COMPONENTS 2: INCLUDE CLASS files associated with mruby/c
+  mrbc_esp32_bmp280_gem_init(0);
 //
 // END COMPONENTS 2
 //-----------------------------------------------------------
