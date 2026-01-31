@@ -17,11 +17,13 @@ typedef struct LEDC_HANDLE {
   int            pin;      //ピン番号
   ledc_timer_t   timer;    //タイマー
   ledc_channel_t channel;  //チャンネル
-  uint8_t        flag;     //初期化フラグ
 } LEDC_HANDLE;
 
-ledc_channel_t nowSelectedChannels[4][8]= {0};  //Timer 0-3, channel 0-7
+// 物理的なチャンネル 0-7 の使用状況を管理
+static uint8_t used_channels[8] = {0};
 
+// タイマー 0-3 の設定済み周波数を保持
+static uint32_t configured_timer_freq[4] = {0};
 
 /*! constructor
 
@@ -52,7 +54,6 @@ static void mrbc_esp32_ledc_initialize(mrbc_vm *vm, mrbc_value v[], int argc)
   LEDC_HANDLE hndl;
   hndl.timer    = 0;
   hndl.channel  = 0; 
-  hndl.flag     = 0;
   hndl.pin      = GET_INT_ARG(1);
   
   //オプション解析
@@ -72,27 +73,36 @@ static void mrbc_esp32_ledc_initialize(mrbc_vm *vm, mrbc_value v[], int argc)
   if( MRBC_ISNUMERIC(channel) ) {
     hndl.channel = MRBC_TO_INT(channel);
   }
-  while ( nowSelectedChannels[hndl.timer][hndl.channel] == 1){
-    int preChannel =  hndl.channel;
-    hndl.channel = ( hndl.channel + 1 ) % 8;
-    ESP_LOGW(TAG, "LEDC Channel %d (Timer %d) is duplicated. change to %d", preChannel, hndl.timer, hndl.channel );
+
+  // チャンネル重複チェック：物理的な 0-7 番の空きを探す
+  int start_ch = hndl.channel;
+  while (used_channels[hndl.channel] == 1) {
+    hndl.channel = (hndl.channel + 1) % 8;
+    if (hndl.channel == start_ch) {
+      ESP_LOGE(TAG, "No free LEDC channels available!");
+      return; 
+    }
+    ESP_LOGW(TAG, "LEDC Channel conflict. Changed to %d", hndl.channel);
   }
-  if ( hndl.channel > 7 ){
-    ESP_LOGE(TAG, "LEDC Channel >= 7");
-  }
-  if ( hndl.timer > 3 ){
-    ESP_LOGE(TAG, "LEDC Timer >= 4");
+
+  if (hndl.timer > 3) {
+    ESP_LOGE(TAG, "LEDC Timer index out of range (0-3)");
+    return;
   }
   
   // タイマー設定
-  ledc_timer_config_t ledc_timer = {
-    .speed_mode      = LEDC_HIGH_SPEED_MODE,
-    .duty_resolution = LEDC_TIMER_10_BIT,
-    .timer_num       = hndl.timer,
-    .freq_hz         = freq_ini,
-    .clk_cfg         = LEDC_AUTO_CLK,
-  };
-  ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+  if (configured_timer_freq[hndl.timer] != freq_ini) {
+    ledc_timer_config_t ledc_timer = {
+      .speed_mode      = LEDC_HIGH_SPEED_MODE,
+      .duty_resolution = LEDC_TIMER_10_BIT,
+      .timer_num       = hndl.timer,
+      .freq_hz         = freq_ini,
+      .clk_cfg         = LEDC_AUTO_CLK,
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+    configured_timer_freq[hndl.timer] = freq_ini;
+    ESP_LOGI(TAG, "Timer %d configured to %"PRIu32" Hz", hndl.timer, freq_ini);
+  }
   
   // チャンネル設定
   ledc_channel_config_t ledc_channel = {
@@ -107,20 +117,17 @@ static void mrbc_esp32_ledc_initialize(mrbc_vm *vm, mrbc_value v[], int argc)
   ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
   
   // 使用したチャンネルを保管
-  nowSelectedChannels[hndl.timer][hndl.channel] = 1;
+  used_channels[hndl.channel] = 1;
   
-  //初期化終了
-  hndl.flag = 1;
-
   // instance->data を int へのポインタとみなして、値を代入する。
   *((LEDC_HANDLE *)(v[0].instance->data)) = hndl;
   
-  ESP_LOGW(TAG, "PWM initial");
-  ESP_LOGW(TAG, "pin:       %d", hndl.pin);
-  ESP_LOGW(TAG, "timer:     %d", hndl.timer);
-  ESP_LOGW(TAG, "channel:   %d", hndl.channel);
-  ESP_LOGW(TAG, "freq(ini): [%"PRIu32"]", freq_ini);
-  ESP_LOGW(TAG, "duty(percent)(ini): [%"PRIu32"]", duty_pc_ini);
+  ESP_LOGI(TAG, "PWM initial");
+  ESP_LOGI(TAG, "pin:       %d", hndl.pin);
+  ESP_LOGI(TAG, "timer:     %d", hndl.timer);
+  ESP_LOGI(TAG, "channel:   %d", hndl.channel);
+  ESP_LOGI(TAG, "freq(ini): [%"PRIu32"]", freq_ini);
+  ESP_LOGI(TAG, "duty(percent)(ini): [%"PRIu32"]", duty_pc_ini);
 }
 
 /*! ledc_freq( freq ) 
@@ -133,12 +140,14 @@ mrbc_esp32_ledc_freq(mrb_vm* vm, mrb_value* v, int argc)
   uint32_t freq = GET_INT_ARG(1);
   LEDC_HANDLE hndl = *((LEDC_HANDLE *)(v[0].instance->data));
 
-  ESP_LOGD(TAG, "timer: %d", hndl.timer);
-  ESP_LOGD(TAG, "freq:  [%"PRIu32"]", freq);
+  ESP_LOGI(TAG, "timer: %d", hndl.timer);
+  ESP_LOGI(TAG, "freq:  [%"PRIu32"]", freq);
 
   // 周波数の設定
-  ESP_ERROR_CHECK( ledc_set_freq(LEDC_HIGH_SPEED_MODE, hndl.timer, freq) );
-  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
+  if (configured_timer_freq[hndl.timer] != freq) {
+    ESP_ERROR_CHECK( ledc_set_freq(LEDC_HIGH_SPEED_MODE, hndl.timer, freq) );
+    configured_timer_freq[hndl.timer] = freq;
+  }
 }
 
 /*! ledc_duty( duty )
@@ -154,13 +163,12 @@ mrbc_esp32_ledc_duty(mrb_vm* vm, mrb_value* v, int argc)
 
   uint32_t duty = (uint32_t) (duty_pc * DutyMAX / 100.0); //10bit
 
-  ESP_LOGD(TAG, "channel:       %d", hndl.channel);
-  ESP_LOGD(TAG, "duty(percent): [%"PRIu32"]", duty_pc);
-  ESP_LOGD(TAG, "duty:          [%"PRIu32"]", duty);
+  ESP_LOGI(TAG, "channel:       %d", hndl.channel);
+  ESP_LOGI(TAG, "duty(percent): [%"PRIu32"]", duty_pc);
+  ESP_LOGI(TAG, "duty:          [%"PRIu32"]", duty);
   
   //デューティー比の設定
   ESP_ERROR_CHECK( ledc_set_duty_and_update(LEDC_HIGH_SPEED_MODE, hndl.channel, duty, hpoint));
-  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
 }
 
 
@@ -176,13 +184,15 @@ mrbc_esp32_ledc_period_us(mrb_vm* vm, mrb_value* v, int argc)
 
   uint32_t freq = ( 1000000 / time ); //microsec --> Hz
 
-  ESP_LOGD(TAG, "timer: %d", hndl.timer);
-  ESP_LOGD(TAG, "time:  [%"PRIu32"]", time);
-  ESP_LOGD(TAG, "freq:  [%"PRIu32"]", freq);
+  ESP_LOGI(TAG, "timer: %d", hndl.timer);
+  ESP_LOGI(TAG, "time:  [%"PRIu32"]", time);
+  ESP_LOGI(TAG, "freq:  [%"PRIu32"]", freq);
   
   // 周波数の設定. 
-  ESP_ERROR_CHECK( ledc_set_freq(LEDC_HIGH_SPEED_MODE, hndl.timer, freq) );
-  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
+  if (configured_timer_freq[hndl.timer] != freq) {
+    ESP_ERROR_CHECK( ledc_set_freq(LEDC_HIGH_SPEED_MODE, hndl.timer, freq) );
+    configured_timer_freq[hndl.timer] = freq;
+  }
 }
 
 
@@ -200,14 +210,12 @@ mrbc_esp32_ledc_pulse_width_us(mrbc_vm *vm, mrbc_value v[], int argc)
   uint32_t freq = ledc_get_freq(LEDC_HIGH_SPEED_MODE, hndl.timer);
   uint32_t duty = (uint32_t) (ontime * (freq / 1000000.0) * DutyMAX); //10bit
 
-  ESP_LOGD(TAG, "channel: %d", hndl.channel);
-  ESP_LOGD(TAG, "ontime:  [%"PRIu32"]", ontime);
-  ESP_LOGD(TAG, "duty:    [%"PRIu32"]", duty);
+  ESP_LOGI(TAG, "channel: %d", hndl.channel);
+  ESP_LOGI(TAG, "ontime:  [%"PRIu32"]", ontime);
+  ESP_LOGI(TAG, "duty:    [%"PRIu32"]", duty);
   
   //デューティー比の設定．
   ESP_ERROR_CHECK( ledc_set_duty_and_update(LEDC_HIGH_SPEED_MODE, hndl.channel, duty, hpoint) );
-  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
-
 }
 
 
