@@ -9,6 +9,9 @@
 
 static char* TAG = "SNTP";
 
+
+
+
 static void
 mrbc_esp32_sntp_new(mrb_vm* vm, mrb_value* v, int argc)
 {
@@ -20,6 +23,11 @@ mrbc_esp32_sntp_new(mrb_vm* vm, mrb_value* v, int argc)
   vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
 }
 
+//void time_sync_notification_cb(struct timeval *tv) {
+//    ESP_LOGI(TAG, "Notification of a time synchronization event");
+//    ESP_LOGI(TAG, "Synced time: %ld.%06ld", (long)tv->tv_sec, (long)tv->tv_usec);
+//}
+
 static void
 mrbc_esp32_sntp_initialize(mrb_vm* vm, mrb_value* v, int argc)
 {
@@ -29,7 +37,9 @@ mrbc_esp32_sntp_initialize(mrb_vm* vm, mrb_value* v, int argc)
   time_t now = 0;
   int retry  = 0;
   const int retry_count = 10;
-   
+
+  //  sntp_set_time_sync_notification_cb(time_sync_notification_cb);
+  
   // set time
   esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
   esp_sntp_setservername(0, "ntp.nict.jp");
@@ -43,6 +53,9 @@ mrbc_esp32_sntp_initialize(mrb_vm* vm, mrb_value* v, int argc)
   
   //UNIXTIME の取得
   time(&now);
+
+  int64_t time_us0 =  (int64_t)now;
+  printf("Current s: %lld\n", time_us0);
   
   //JST に設定
   setenv("TZ", "JST-9", 1);
@@ -51,10 +64,69 @@ mrbc_esp32_sntp_initialize(mrb_vm* vm, mrb_value* v, int argc)
   //tm 構造体に格納
   localtime_r(&now, &timeinfo);
 
-  //
+  struct timeval tv_now;
+  gettimeofday(&tv_now, NULL);
+  /*
+  int64_t time_us = (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
+  printf("Current us: %lld\n", time_us);
+
+  int64_t time_ms = (int64_t)tv_now.tv_sec * 1000L + (int64_t)tv_now.tv_usec / 1000;
+  printf("Current ms: %lld\n", time_ms);
+
+  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
+
+  gettimeofday(&tv_now, NULL);
+  time_ms = (int64_t)tv_now.tv_sec * 1000L + (int64_t)tv_now.tv_usec / 1000;
+  printf("Current ms: %lld\n", time_ms);
+
+  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
+
+  gettimeofday(&tv_now, NULL);
+  time_ms = (int64_t)tv_now.tv_sec * 1000L + (int64_t)tv_now.tv_usec / 1000;
+  printf("Current ms: %lld\n", time_ms);
+  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
+
+  gettimeofday(&tv_now, NULL);
+  time_ms = (int64_t)tv_now.tv_sec * 1000L + (int64_t)tv_now.tv_usec / 1000;
+  printf("Current ms: %lld\n", time_ms);
+  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
+
+  gettimeofday(&tv_now, NULL);
+  time_ms = (int64_t)tv_now.tv_sec * 1000L + (int64_t)tv_now.tv_usec / 1000;
+  printf("Current ms: %lld\n", time_ms);
+  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
+
+  gettimeofday(&tv_now, NULL);
+  time_ms = (int64_t)tv_now.tv_sec * 1000L + (int64_t)tv_now.tv_usec / 1000;
+  printf("Current ms: %lld\n", time_ms);
+  vTaskDelay(100 / portTICK_PERIOD_MS);  //wait
+
+  gettimeofday(&tv_now, NULL);
+  time_ms = (int64_t)tv_now.tv_sec * 1000L + (int64_t)tv_now.tv_usec / 1000;
+  printf("Current ms: %lld\n", time_ms);
+  */
+  
+  //保管
   *((struct tm *)(v[0].instance->data)) = timeinfo;  
+}
+
+static void
+mrbc_esp32_sntp_read(mrb_vm* vm, mrb_value* v, int argc)
+{
+  time_t now;
+  struct tm timeinfo = *((struct tm *)(v[0].instance->data));
+
+  // 現在のシステム時刻(UNIXTIME)を取得
+  time(&now);
+
+  // ローカルタイム(JST)に変換して struct tm に格納
+  localtime_r(&now, &timeinfo);
+
+  // インスタンスのデータを現在の時刻で上書き
+  *((struct tm *)(v[0].instance->data)) = timeinfo;
 
 }
+
 
 static void
 mrbc_esp32_sntp_date(mrb_vm* vm, mrb_value* v, int argc)
@@ -143,7 +215,7 @@ mrbc_esp32_sntp_gem_init(struct VM* vm)
   
   mrbc_define_method(0, sntp, "new",        mrbc_esp32_sntp_new);
   mrbc_define_method(0, sntp, "initialize", mrbc_esp32_sntp_initialize);
-  
+  mrbc_define_method(0, sntp, "read",  mrbc_esp32_sntp_read);  
   mrbc_define_method(0, sntp, "datetime", mrbc_esp32_sntp_datetime);
   mrbc_define_method(0, sntp, "date",  mrbc_esp32_sntp_date);
   mrbc_define_method(0, sntp, "time",  mrbc_esp32_sntp_time);
