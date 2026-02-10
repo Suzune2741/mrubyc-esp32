@@ -14,10 +14,25 @@ menu "mrubyc-esp32 Configuration"
         bool "UART2"
   endchoice
 
+  choice
+    prompt "TIME ZONE"
+    default TIME_ZONE_UTC
+
+    config TIME_ZONE_UTC
+        bool "UTC"
+    config TIME_ZONE_JST
+        bool "JST-9"
+  endchoice
+
   config UART_NUM
     int
     default 0 if UART_NUM_0
     default 2 if UART_NUM_2
+
+  config MRUBYC_TIMEZONE
+    string
+    default "UTC"   if TIME_ZONE_UTC
+    default "JST-9" if TIME_ZONE_JST
 
   config USE_MRUBYC_HTTP_CAMERA
     bool "USE ESP-EYE CAMERA (idf.py add-dependency \"espressif/esp32-camera\")"
