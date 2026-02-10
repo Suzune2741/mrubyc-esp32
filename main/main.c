@@ -26,8 +26,7 @@
 #include "mrbc_esp32_stdio.h"
 #include "mrbc_esp32_dirent.h"
 #include "mrbc_esp32_utils.h"
-
-
+#include "mrbc_esp32_time.h"
 
 static const char *TAG = "mrubyc-esp32";
 
@@ -547,6 +546,8 @@ void app_main(void) {
   mrbc_esp32_wifi_gem_init(0);
   mrbc_esp32_sntp_gem_init(0);
   mrbc_esp32_httpclient_gem_init(0);
+  ESP_LOGI(TAG, "start Time (C) \n");  
+  mrbc_esp32_time_gem_init(0);
   ESP_LOGI(TAG, "start SLEEP (C) \n");
   mrbc_esp32_sleep_gem_init(0);
   ESP_LOGI(TAG, "start SPI (C) \n");

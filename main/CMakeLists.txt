@@ -14,6 +14,7 @@ set(srcs
 	 "mrbc_esp32_http_client.c"
 	 "mrbc_esp32_http_camera.c"
 	 "mrbc_esp32_sntp.c"
+	 "mrbc_esp32_time.c"
 	 "mrbc_esp32_sleep.c"
 	 "mrbc_esp32_utils.c"
 	 "mrblib.c"
@@ -21,3 +22,4 @@ set(srcs
 
 idf_component_register(SRCS ${srcs}
                     INCLUDE_DIRS ".")
+
