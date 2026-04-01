@@ -115,6 +115,17 @@ static void mrbc_esp32_ledc_initialize(mrbc_vm *vm, mrbc_value v[], int argc)
     .hpoint     = 0,
   };
   ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
+
+  //チャンネル設定が完了した後に、最初の1回だけフェード機能をインストールする
+  static bool fade_installed = false;
+  if (!fade_installed) {
+      esp_err_t err = ledc_fade_func_install(0);
+      // ESP_OK または 既にインストール済み(ESP_ERR_INVALID_STATE) ならフラグを立てる
+      if (err == ESP_OK || err == ESP_ERR_INVALID_STATE) {
+          fade_installed = true;
+          ESP_LOGD(TAG, "LEDC fade function installed.");
+      }
+  }
   
   // 使用したチャンネルを保管
   used_channels[hndl.channel] = 1;
@@ -237,7 +248,4 @@ mrbc_esp32_ledc_gem_init(struct VM* vm)
   mrbc_define_method(0, pwm, "period_us",      mrbc_esp32_ledc_period_us);
   mrbc_define_method(0, pwm, "duty",           mrbc_esp32_ledc_duty);
   mrbc_define_method(0, pwm, "pulse_width_us", mrbc_esp32_ledc_pulse_width_us);
-
-  //一度初期化すれば良い関数 (インスタンス作成のたびに呼び出さなくて良い)
-  ESP_ERROR_CHECK(ledc_fade_func_install(0));
 }
