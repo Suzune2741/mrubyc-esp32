@@ -46,8 +46,8 @@ add_custom_target(mrbc_build ALL DEPENDS ${MRBC_OUTPUTS})
 spiffs_create_partition_image(spiffs ${SPIFFS_DIR} FLASH_IN_PROJECT)
 
 # 7. 依存関係: SPIFFS を作る「前」に必ず mrbc のコンパイルを終わらせる
-if(TARGET spiffs_storage_bin)
-    add_dependencies(spiffs_storage_bin mrbc_build)
-elseif(TARGET storage_bin)
-    add_dependencies(storage_bin mrbc_build)
+if(TARGET spiffs_spiffs_bin)
+    add_dependencies(spiffs_spiffs_bin mrbc_build)
+elseif(TARGET spiffs_bin)
+    add_dependencies(spiffs_bin mrbc_build)
 endif()
