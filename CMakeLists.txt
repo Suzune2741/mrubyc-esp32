@@ -43,8 +43,7 @@ endforeach()
 add_custom_target(mrbc_build ALL DEPENDS ${MRBC_OUTPUTS})
 
 # 6. SPIFFS イメージの生成と書き込み設定
-# ※ partitions.csv の1列目が「storage」である前提です
-spiffs_create_partition_image(storage ${SPIFFS_DIR} FLASH_IN_PROJECT)
+spiffs_create_partition_image(spiffs ${SPIFFS_DIR} FLASH_IN_PROJECT)
 
 # 7. 依存関係: SPIFFS を作る「前」に必ず mrbc のコンパイルを終わらせる
 if(TARGET spiffs_storage_bin)
